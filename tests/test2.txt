@@ -1,0 +1,10 @@
+TELL
+a => e
+c => f
+b&d => a
+e&d => c
+b
+d
+
+ASK
+f
