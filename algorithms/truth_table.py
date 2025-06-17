@@ -5,8 +5,9 @@ from itertools import product
 def truth_table(kb, query):
     """
     Truth Table Method for propositional logic inference.
-    kb: KnowledgeBase object
+    kb: KnowledgeBase object  
     query: proposition symbol to be proved
+    Returns: (result, number_of_models) where result is True/False and number_of_models is count of valid models
     """
     # Get all unique symbols from facts and rules
     symbols = set()
@@ -46,24 +47,12 @@ def truth_table(kb, query):
     # The query is entailed if ALL valid models satisfy it
     total_valid_models = len(valid_models)
     if total_valid_models == 0:
-        return False, []
+        return False, 0
     
     result = entailing_models == total_valid_models
     
-    # For entailed list, return the symbols that are true in all entailing models
-    entailed = []
-    if result:
-        # Find symbols that are true in all models that entail the query
-        for symbol in symbols:
-            true_in_all = True
-            for model in valid_models:
-                if model.get(query, False) and not model.get(symbol, False):
-                    true_in_all = False
-                    break
-            if true_in_all and any(model.get(symbol, False) for model in valid_models if model.get(query, False)):
-                entailed.append(symbol)
-    
-    return result, entailed
+    # Return result and number of valid models (as per assignment spec)
+    return result, total_valid_models
 
 def satisfies_kb(kb, model):
     """

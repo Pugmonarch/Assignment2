@@ -58,9 +58,9 @@ def main():
         else:
             print("NO")
     elif method == "TT":
-        result, entailed = truth_table.truth_table(kb, query)
+        result, num_models = truth_table.truth_table(kb, query)
         if result:
-            print("YES:", ', '.join(entailed))
+            print("YES:", num_models)
         else:
             print("NO")
     else:
