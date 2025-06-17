@@ -1,5 +1,5 @@
 # utils/knowledge_base.py
-
+#Test push
 class Rule:
     """
     Represents a Horn clause rule.
