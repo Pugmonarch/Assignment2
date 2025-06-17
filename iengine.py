@@ -7,7 +7,7 @@ import sys
 import os
 from parser import parse_file
 from knowledge_base import KnowledgeBase
-from algorithms import forward_chaining
+from algorithms import forward_chaining, backward_chaining
 
 def main():
     if len(sys.argv) != 3:
@@ -25,6 +25,12 @@ def main():
 
     if method == "FC":
         result, entailed = forward_chaining.forward_chaining(kb, query)
+        if result:
+            print("YES:", ', '.join(entailed))
+        else:
+            print("NO")
+    elif method == "BC":
+        result, entailed = backward_chaining.backward_chaining(kb, query)
         if result:
             print("YES:", ', '.join(entailed))
         else:
