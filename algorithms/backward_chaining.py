@@ -6,19 +6,16 @@ def backward_chaining(kb, query):
     kb: KnowledgeBase object
     query: proposition symbol to be proved
     """
-    visited = set()  # To avoid infinite loops
     entailed = []    # Track the order of inference
     
-    def bc_recursive(goal):
+    def bc_recursive(goal, visited):
         """
         Recursive helper function for backward chaining.
         Returns True if goal can be proven, False otherwise.
         """
-        # Avoid infinite loops
+        # Avoid infinite loops in this path
         if goal in visited:
             return False
-        
-        visited.add(goal)
         
         # Check if goal is already a known fact
         if goal in kb.facts:
@@ -29,33 +26,30 @@ def backward_chaining(kb, query):
         # Try to prove goal using rules
         for rule in kb.rules:
             if rule.conclusion == goal:
+                # Create new visited set for this rule attempt
+                new_visited = visited | {goal}
+                
                 # Try to prove all premises of this rule
                 all_premises_proven = True
-                temp_entailed = []  # Temporary list to track premises for this rule
+                premises_for_this_rule = []
                 
                 for premise in rule.premises:
-                    if not bc_recursive(premise):
+                    if bc_recursive(premise, new_visited):
+                        if premise not in premises_for_this_rule:
+                            premises_for_this_rule.append(premise)
+                    else:
                         all_premises_proven = False
                         break
-                    else:
-                        if premise not in temp_entailed:
-                            temp_entailed.append(premise)
                 
                 if all_premises_proven:
-                    # Add premises to entailed list if not already there
-                    for premise in temp_entailed:
-                        if premise not in entailed:
-                            entailed.append(premise)
-                    
-                    # Add the goal (conclusion) to entailed list
+                    # Add the goal (conclusion) to entailed list if not already there
                     if goal not in entailed:
                         entailed.append(goal)
-                    
                     return True
         
         return False
     
     # Start the backward chaining process
-    result = bc_recursive(query)
+    result = bc_recursive(query, set())
     
     return result, entailed
