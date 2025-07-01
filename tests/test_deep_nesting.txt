@@ -1,0 +1,7 @@
+TELL
+((a & b) => (c || d)) & ((c & e) => f)
+a
+b
+e
+ASK
+f

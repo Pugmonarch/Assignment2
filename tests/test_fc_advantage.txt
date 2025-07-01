@@ -1,0 +1,10 @@
+TELL
+a => b
+b => c
+c => d
+d => e
+e => target
+a
+many_other_facts
+ASK
+target

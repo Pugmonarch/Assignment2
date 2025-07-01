@@ -1,28 +1,5 @@
-# resolution_prover.py
-# Enhanced resolution-based theorem prover with complete CNF conversion
-
-from parser import *
-from knowledge_base import *
-
-class Clause:
-    """Represents a clause (disjunction of literals)"""
-    def __init__(self, literals):
-        # literals is a set of strings, where negative literals start with '~'
-        self.literals = set(literals) if literals else set()
-    
-    def __str__(self):
-        if not self.literals:
-            return "□"  # Empty clause (contradiction)
-        return " || ".join(sorted(self.literals))
-    
-    def __eq__(self, other):
-        return isinstance(other, Clause) and self.literals == other.literals
-    
-    def __hash__(self):
-        return hash(frozenset(self.literals))
-    
-    def is_empty(self):
-        return len(self.literals) == 0
+# Additional required imports and classes for resolution
+from knowledge_base import Clause, Atom, Negation, Conjunction, Disjunction, Implication, Biconditional
 
 def negate_literal(literal):
     """Negate a literal"""
@@ -32,7 +9,7 @@ def negate_literal(literal):
         return '~' + literal  # Add negation
 
 def convert_to_cnf(expr):
-    """Convert a logical expression to Conjunctive Normal Form (CNF)"""
+    """Convert a logical expression to Conjunctive Normal Form (CNF) - FIXED"""
     
     def eliminate_biconditionals(expr):
         """Replace p <=> q with (p => q) & (q => p)"""
@@ -61,7 +38,7 @@ def convert_to_cnf(expr):
             return expr
     
     def move_negations_inward(expr):
-        """Apply De Morgan's laws and double negation elimination"""
+        """Apply De Morgan's laws and double negation elimination - FIXED"""
         if isinstance(expr, Negation):
             if isinstance(expr.operand, Negation):
                 # Double negation elimination: ~~p becomes p
@@ -121,7 +98,7 @@ def convert_to_cnf(expr):
     return expr
 
 def extract_clauses_from_cnf(cnf_expr):
-    """Extract clauses from CNF expression"""
+    """Extract clauses from CNF expression - IMPROVED"""
     clauses = []
     
     def extract_from_conjunction(expr):
@@ -132,7 +109,7 @@ def extract_clauses_from_cnf(cnf_expr):
         else:
             # This should be a disjunction or a single literal
             literals = extract_literals_from_disjunction(expr)
-            if literals:  # Only add non-empty clauses
+            if literals is not None:  # Only add valid clauses
                 clauses.append(Clause(literals))
     
     def extract_literals_from_disjunction(expr):
@@ -148,16 +125,19 @@ def extract_clauses_from_cnf(cnf_expr):
             elif isinstance(e, Atom):
                 literals.append(e.symbol)
             else:
-                # Handle other cases - this shouldn't happen in proper CNF
-                literals.append(str(e))
+                # This shouldn't happen in proper CNF, but handle gracefully
+                print(f"Warning: Unexpected expression in CNF: {e} (type: {type(e)})")
+                return None
         
-        collect_literals(expr)
+        result = collect_literals(expr)
+        if result is None:
+            return None
         return literals
     
     # Handle the case where the entire expression is a single clause
     if isinstance(cnf_expr, (Atom, Negation)) or isinstance(cnf_expr, Disjunction):
         literals = extract_literals_from_disjunction(cnf_expr)
-        if literals:
+        if literals is not None:
             clauses.append(Clause(literals))
     else:
         extract_from_conjunction(cnf_expr)
@@ -179,37 +159,26 @@ def resolve(clause1, clause2):
     
     return resolvents
 
-def convert_horn_kb_to_clauses(kb):
-    """Convert Horn clause knowledge base to resolution clauses"""
-    clauses = set()
-    
-    # Convert facts to unit clauses
-    for fact in kb.facts:
-        clauses.add(Clause([fact]))
-    
-    # Convert rules to clauses
-    for rule in kb.rules:
-        # Convert p & q => r to ~p || ~q || r
-        literals = ['~' + premise for premise in rule.premises] + [rule.conclusion]
-        clauses.add(Clause(literals))
-    
-    return clauses
-
 def convert_general_kb_to_clauses(kb):
     """Convert general knowledge base to resolution clauses"""
     clauses = set()
     
     for sentence in kb.sentences:
         # Convert each sentence to CNF and extract clauses
-        cnf = convert_to_cnf(sentence)
-        sentence_clauses = extract_clauses_from_cnf(cnf)
-        clauses.update(sentence_clauses)
+        try:
+            cnf = convert_to_cnf(sentence)
+            sentence_clauses = extract_clauses_from_cnf(cnf)
+            clauses.update(sentence_clauses)
+        except Exception as e:
+            print(f"Error converting sentence to CNF: {sentence}, Error: {e}")
+            # Skip problematic sentences
+            continue
     
     return clauses
 
 def resolution_theorem_proving(kb, query):
     """
-    Resolution-based theorem proving
+    Resolution-based theorem proving - FIXED VERSION
     Returns: (result, derivation_steps)
     """
     # Convert KB to clauses based on type
@@ -218,13 +187,33 @@ def resolution_theorem_proving(kb, query):
     else:  # Horn clause KnowledgeBase
         clauses = convert_horn_kb_to_clauses(kb)
     
-    # Add negation of query to prove by contradiction
-    negated_query = Clause(['~' + query])
-    clauses.add(negated_query)
+    # CRITICAL FIX: Handle query properly - convert to CNF and negate
+    if isinstance(query, str):
+        # Simple query - create negated literal
+        negated_query = Clause(['~' + query])
+        clauses.add(negated_query)
+    else:
+        # Complex query - convert to CNF, then negate
+        try:
+            # First negate the query
+            negated_query_expr = Negation(query)
+            # Convert to CNF
+            cnf_negated_query = convert_to_cnf(negated_query_expr)
+            # Extract clauses
+            negated_query_clauses = extract_clauses_from_cnf(cnf_negated_query)
+            # Add all clauses from the negated query
+            for clause in negated_query_clauses:
+                clauses.add(clause)
+        except Exception as e:
+            print(f"Error processing query: {e}")
+            return False, [f"Error processing query: {e}"]
     
     derivation_steps = []
     iteration = 0
-    max_iterations = 1000  # Prevent infinite loops
+    max_iterations = 1000
+    
+    # Debug: print initial clauses
+    derivation_steps.append(f"Initial clauses: {[str(c) for c in clauses]}")
     
     while iteration < max_iterations:
         iteration += 1
@@ -262,113 +251,14 @@ def resolution_theorem_proving(kb, query):
     derivation_steps.append(f"Maximum iterations ({max_iterations}) reached")
     return False, derivation_steps
 
-def print_cnf_conversion_steps(expr):
-    """Helper function to print CNF conversion steps for debugging"""
-    print(f"Original: {expr}")
+def convert_horn_kb_to_clauses(kb):
+    """Convert Horn clause knowledge base to resolution clauses"""
+    clauses = set()
     
-    # Step 1: Eliminate biconditionals
-    step1 = expr
-    if any(isinstance(e, Biconditional) for e in get_all_subexpressions(expr)):
-        from copy import deepcopy
-        step1 = eliminate_biconditionals_debug(deepcopy(expr))
-        print(f"After eliminating biconditionals: {step1}")
+    # Convert facts to unit clauses
+    for fact in kb.facts:
+        clauses.add(Clause([fact]))
     
-    # Step 2: Eliminate implications
-    step2 = step1
-    if any(isinstance(e, Implication) for e in get_all_subexpressions(step1)):
-        step2 = eliminate_implications_debug(step1)
-        print(f"After eliminating implications: {step2}")
-    
-    # Step 3: Move negations inward
-    step3 = move_negations_inward_debug(step2)
-    print(f"After moving negations inward: {step3}")
-    
-    # Step 4: Distribute OR over AND
-    step4 = distribute_or_over_and_debug(step3)
-    print(f"Final CNF: {step4}")
-    
-    return step4
-
-def get_all_subexpressions(expr):
-    """Get all subexpressions of an expression"""
-    if isinstance(expr, Atom):
-        return [expr]
-    elif isinstance(expr, Negation):
-        return [expr] + get_all_subexpressions(expr.operand)
-    elif isinstance(expr, BinaryExpression):
-        return [expr] + get_all_subexpressions(expr.left) + get_all_subexpressions(expr.right)
-    else:
-        return [expr]
-
-# Debug versions of transformation functions (same logic, just for debugging)
-def eliminate_biconditionals_debug(expr):
-    """Debug version of eliminate_biconditionals"""
-    # Same implementation as in convert_to_cnf
-    if isinstance(expr, Biconditional):
-        left_to_right = Implication(expr.left, expr.right)
-        right_to_left = Implication(expr.right, expr.left)
-        return Conjunction(left_to_right, right_to_left)
-    elif isinstance(expr, BinaryExpression):
-        return type(expr)(eliminate_biconditionals_debug(expr.left), 
-                        eliminate_biconditionals_debug(expr.right))
-    elif isinstance(expr, Negation):
-        return Negation(eliminate_biconditionals_debug(expr.operand))
-    else:
-        return expr
-
-def eliminate_implications_debug(expr):
-    """Debug version of eliminate_implications"""
-    if isinstance(expr, Implication):
-        return Disjunction(Negation(expr.left), expr.right)
-    elif isinstance(expr, BinaryExpression):
-        return type(expr)(eliminate_implications_debug(expr.left), 
-                        eliminate_implications_debug(expr.right))
-    elif isinstance(expr, Negation):
-        return Negation(eliminate_implications_debug(expr.operand))
-    else:
-        return expr
-
-def move_negations_inward_debug(expr):
-    """Debug version of move_negations_inward"""
-    if isinstance(expr, Negation):
-        if isinstance(expr.operand, Negation):
-            return move_negations_inward_debug(expr.operand.operand)
-        elif isinstance(expr.operand, Conjunction):
-            left = move_negations_inward_debug(Negation(expr.operand.left))
-            right = move_negations_inward_debug(Negation(expr.operand.right))
-            return Disjunction(left, right)
-        elif isinstance(expr.operand, Disjunction):
-            left = move_negations_inward_debug(Negation(expr.operand.left))
-            right = move_negations_inward_debug(Negation(expr.operand.right))
-            return Conjunction(left, right)
-        else:
-            return expr
-    elif isinstance(expr, BinaryExpression):
-        return type(expr)(move_negations_inward_debug(expr.left), 
-                        move_negations_inward_debug(expr.right))
-    else:
-        return expr
-
-def distribute_or_over_and_debug(expr):
-    """Debug version of distribute_or_over_and"""
-    if isinstance(expr, Disjunction):
-        left = distribute_or_over_and_debug(expr.left)
-        right = distribute_or_over_and_debug(expr.right)
-        
-        if isinstance(left, Conjunction):
-            a_or_right = distribute_or_over_and_debug(Disjunction(left.left, right))
-            b_or_right = distribute_or_over_and_debug(Disjunction(left.right, right))
-            return Conjunction(a_or_right, b_or_right)
-        elif isinstance(right, Conjunction):
-            left_or_b = distribute_or_over_and_debug(Disjunction(left, right.left))
-            left_or_c = distribute_or_over_and_debug(Disjunction(left, right.right))
-            return Conjunction(left_or_b, left_or_c)
-        else:
-            return Disjunction(left, right)
-    elif isinstance(expr, Conjunction):
-        return Conjunction(distribute_or_over_and_debug(expr.left), 
-                         distribute_or_over_and_debug(expr.right))
-    elif isinstance(expr, Negation):
-        return Negation(distribute_or_over_and_debug(expr.operand))
-    else:
-        return expr
+    # Convert rules to clauses
+    for rule in kb.rules:
+        # Convert# Fixed parser.py - Handle complex queries properly

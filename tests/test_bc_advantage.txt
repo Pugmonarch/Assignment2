@@ -1,0 +1,43 @@
+TELL
+fact1
+fact2
+fact3
+fact4
+fact5
+fact6
+fact7
+fact8
+fact9
+fact10
+fact11
+fact12
+fact13
+fact14
+fact15
+fact16
+fact17
+fact18
+fact19
+fact20
+rule1 => intermediate1
+rule2 => intermediate2
+rule3 => intermediate3
+rule4 => intermediate4
+rule5 => intermediate5
+rule6 => intermediate6
+rule7 => intermediate7
+rule8 => intermediate8
+rule9 => intermediate9
+rule10 => intermediate10
+intermediate1 & intermediate2 => complex1
+intermediate3 & intermediate4 => complex2
+intermediate5 & intermediate6 => complex3
+intermediate7 & intermediate8 => complex4
+intermediate9 & intermediate10 => complex5
+complex1 & complex2 => very_complex1
+complex3 & complex4 => very_complex2
+very_complex1 & very_complex2 => not_target
+simple_fact => query
+simple_fact
+ASK
+query
